@@ -226,8 +226,6 @@ def tabla_huffman(simbolos, frecuencias, codigos):
 
 
 
-
-
 if __name__ == "__main__":
     ruta = Path(__file__).with_name("prueba.txt")
     texto = ruta.read_bytes().decode("utf-8")
@@ -261,8 +259,6 @@ if __name__ == "__main__":
     with ruta_huff.open("wb") as archivo:
         pickle.dump((codes_dic, padding, root), archivo)
         bits.tofile(archivo)
-
-    
     
     visualizar_arbol(root, ruta.with_name("arbol_huffman.svg"))
     # print(root)
