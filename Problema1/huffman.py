@@ -13,9 +13,9 @@ Description:
     The class includes a __str__ method to visualize the tree
     structure and binary code paths (0/1).
 
-	Adapted from: GeeksforGeeks. (s. f.). Huffman Coding | Greedy 
-	Algo-3. GeeksforGeeks. 
-	https://www.geeksforgeeks.org/dsa/huffman-coding-greedy-algo-3/
+    Adapted from: GeeksforGeeks. (s. f.). Huffman Coding | Greedy 
+    Algo-3. GeeksforGeeks. 
+    https://www.geeksforgeeks.org/dsa/huffman-coding-greedy-algo-3/
 
 Usage:
     python 05_huffman.py
@@ -39,9 +39,14 @@ Notes:
 
 
 import heapq
+import json
+import subprocess
 import pandas as pd
 import numpy as np
-import bitarray
+from bitarray import bitarray
+from pathlib import Path
+from collections import Counter
+import pickle
 
 def show_dataframe(df, decimals=2):
     try:
@@ -61,78 +66,110 @@ def show_dataframe(df, decimals=2):
 
 
 def print_huffman_solution(symbols, frequencies, codes):
-	
-	df, H, L = tabla_huffman(symbols, frequencies, codes)
+    
+    df, H, L = tabla_huffman(symbols, frequencies, codes)
 
-	show_dataframe(df, 2)
+    show_dataframe(df, 2)
 
-	print(f"Entropía: {H:.4f} bits/símbolo")
-	print(f"Longitud promedio Huffman: {L:.4f} bits/símbolo")
+    print(f"Entropía: {H:.4f} bits/símbolo")
+    print(f"Longitud promedio Huffman: {L:.4f} bits/símbolo")
 
 
 # Class to represent huffman tree 
 class Node:
-	def __init__(self, x, character=""):
-		self.data = x
-		self.char = character
-		self.left = None
-		self.right = None
-		
-	def __lt__(self, other):
-		return self.data < other.data
-	
-	def __str__(self, level=0, prefix="Root: ", cumchain=""):
-		"""Devuelve una representación jerárquica del árbol."""
-		result = "   " * level + f"{prefix}({self.char}:{self.data}):{cumchain}\n"
-		if self.left:
-			result += self.left.__str__(level + 1, prefix="L-0- ", cumchain=cumchain+'0')
-		if self.right:
-			result += self.right.__str__(level + 1, prefix="R-1- ", cumchain=cumchain+'1')
-		return result
-	
+    def __init__(self, x, character=""):
+        self.data = x
+        self.char = character
+        self.left = None
+        self.right = None
+        
+    def __lt__(self, other):
+        return self.data < other.data
+    
+    def __str__(self, level=0, prefix="Root: ", cumchain=""):
+        """Devuelve una representación jerárquica del árbol."""
+        result = "   " * level + f"{prefix}({self.char}:{self.data}):{cumchain}\n"
+        if self.left:
+            result += self.left.__str__(level + 1, prefix="L-0- ", cumchain=cumchain+'0')
+        if self.right:
+            result += self.right.__str__(level + 1, prefix="R-1- ", cumchain=cumchain+'1')
+        return result
+    
 # Function to traverse tree in preorder 
 # manner and push the huffman representation 
 # of each character.
 def preOrder(root, ans, curr):
-	if root is None:
-		return
+    if root is None:
+        return
 
-	# Leaf node represents a character.
-	if root.left is None and root.right is None:
-		ans[root.char] = curr
-		return
+    # Leaf node represents a character.
+    if root.left is None and root.right is None:
+        ans[root.char] = curr
+        return
 
-	preOrder(root.left, ans, curr + '0')
-	preOrder(root.right, ans, curr + '1')
+    preOrder(root.left, ans, curr + '0')
+    preOrder(root.right, ans, curr + '1')
 
 def huffmanCodes(s, freq):
-	# Code here
-	n = len(s)
+    # Code here
+    n = len(s)
 
-	# Min heap for node class.
-	pq = []
-	for i in range(n):
-		tmp = Node(freq[i], s[i])
-		heapq.heappush(pq, tmp)
+    # Min heap for node class.
+    pq = []
+    for i in range(n):
+        tmp = Node(freq[i], s[i])
+        heapq.heappush(pq, tmp)
 
-	# Construct huffman tree.
-	while len(pq) >= 2:
-		# Left node 
-		l = heapq.heappop(pq)
+    # Construct huffman tree.
+    while len(pq) >= 2:
+        # Left node 
+        l = heapq.heappop(pq)
 
-		# Right node 
-		r = heapq.heappop(pq)
+        # Right node 
+        r = heapq.heappop(pq)
 
-		newNode = Node(l.data + r.data)
-		newNode.left = l
-		newNode.right = r
+        newNode = Node(l.data + r.data)
+        newNode.left = l
+        newNode.right = r
 
-		heapq.heappush(pq, newNode)
+        heapq.heappush(pq, newNode)
 
-	root = heapq.heappop(pq)
-	codes_dic = {}
-	preOrder(root, codes_dic, "")
-	return codes_dic, root
+    root = heapq.heappop(pq)
+    codes_dic = {}
+    preOrder(root, codes_dic, "")
+    return codes_dic, root
+
+
+def visualizar_arbol(root, salida="arbol_huffman.svg"):
+    lineas = ["digraph Huffman {", "    graph [ordering=out];"]
+
+    def visitar(nodo, identificador):
+        etiqueta = str(nodo.data)
+        if nodo.left is None and nodo.right is None:
+            etiqueta = f"{nodo.char!r}: {nodo.data}"
+
+        etiqueta_dot = json.dumps(etiqueta, ensure_ascii=False)
+        lineas.append(f"    {identificador} [label={etiqueta_dot}];")
+
+        #Recorre hacia la izqueirda y la derecha
+        for bit, hijo in (("0", nodo.left), ("1", nodo.right)):
+            if hijo is not None:
+                id_hijo = identificador + bit
+                lineas.append(f'    {identificador} -> {id_hijo} [label="{bit}"];')
+                visitar(hijo, id_hijo)
+
+    if root is not None:
+        visitar(root, "n")
+    lineas.append("}")
+
+    ruta = Path(salida)
+    subprocess.run(
+        ["dot", "-Tsvg", "-o", str(ruta)],
+        input="\n".join(lineas),
+        encoding="utf-8",
+        check=True,
+    )
+    return ruta
 
 
 def tabla_huffman(simbolos, frecuencias, codigos):
@@ -192,10 +229,42 @@ def tabla_huffman(simbolos, frecuencias, codigos):
 
 
 if __name__ == "__main__":
-	s = ["a","b","c","d","e","f"]
-	freq = [5, 9, 12, 13, 16, 45]
-	#freq = [10, 10, 10, 10, 10, 10]
+    ruta = Path(__file__).with_name("prueba.txt")
+    texto = ruta.read_bytes().decode("utf-8")
+    print(repr(texto))
+    
+    conteo = Counter(texto)
 
-	codes_dic, root = huffmanCodes(s, freq)
-	print(root)
-	print_huffman_solution(s, freq, codes_dic)
+    s = list(conteo.keys())
+    freq = list(conteo.values())
+
+    print(s)
+    print(freq)
+
+    codes_dic, root = huffmanCodes(s, freq)
+
+    # Pasar los codigos de strings a bitarrays
+    codes = {}
+    for char, code in codes_dic.items():
+        codes[char] = bitarray(code)
+
+    # bits es el archivo codificado, vamos agregamos la codificacion de cada caracter
+    bits = bitarray()
+    for char in texto:
+        bits.extend(codes[char])
+
+    # Calcular el padding, por si no llega a completar el ultimo byte
+    padding = 8 - (len(bits) % 8) % 8
+
+    # Generar el .huff y guardar el diccionario, padding, arbol y bits
+    ruta_huff = ruta.with_suffix(".huff")
+    with ruta_huff.open("wb") as archivo:
+        pickle.dump((codes_dic, padding, root), archivo)
+        bits.tofile(archivo)
+
+    
+    
+    visualizar_arbol(root, ruta.with_name("arbol_huffman.svg"))
+    # print(root)
+    print_huffman_solution(s, freq, codes_dic)
+        
