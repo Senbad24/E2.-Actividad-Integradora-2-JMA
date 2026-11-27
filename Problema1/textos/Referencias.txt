@@ -1,0 +1,38 @@
+Inglés
+
+ingles_1 -> NINETEEN EIGHTY FOUR - NOVEL - GEORGE ORWELL
+ingles_2 -> Goody Two-Shoes
+ingles_3 -> The Apothecary Diaries Vol. 1
+ingles_4 -> The Apothecary Diaries Vol. 2
+ingles_5 -> The king in yellow by ROBERT W. CHAMBERS
+ingles_6 -> Diary Of A Wimpy Kid Book 1
+ingles_7 -> Diary Of A Wimpy Kid Book 2
+ingles_8 -> Diary Of A Wimpy Kid Book 3
+ingles_9 -> The Fault in Our Stars
+ingles_10 -> The lightning thief
+
+Español
+
+espanol_1 -> La venganza de Don Mendo
+espanol_2 -> La Divina Comedia
+espanol_3 -> Obras escogidas de Gustavo A. Bécquer
+espanol_4 -> Crónicas de Marianela
+espanol_5 -> El señor de Bembibre
+espanol_6 -> El Consejo de los Dioses
+espanol_7 -> El Tesoro de Gastón
+espanol_8 -> Fabulas
+espanol_9 -> La rana viajera
+espanol_10 -> El arroyo
+
+Frances
+
+frances_1 -> P'tit-bonhomme
+frances_2 -> Voyage autour de mon jardin
+frances_3 -> Le diable amoureux
+frances_4 -> La Vie Électrique
+frances_5 -> L'amour au pays bleu
+frances_6 -> L'Immortel
+frances_7 -> L'enfant
+frances_8 -> Clotilde
+frances_9 -> Monsieur Vénus
+frances_10 -> L'escole des filles

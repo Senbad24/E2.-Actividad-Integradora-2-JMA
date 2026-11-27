@@ -139,7 +139,7 @@ def huffmanCodes(s, freq):
     preOrder(root, codes_dic, "")
     return codes_dic, root
 
-
+# Hecho con ayuda de IA
 def visualizar_arbol(root, salida="arbol_huffman.svg"):
     lineas = ["digraph Huffman {", "    graph [ordering=out];"]
 
@@ -223,24 +223,7 @@ def tabla_huffman(simbolos, frecuencias, codigos):
 
     return df, H, L
 
-
-
-
-if __name__ == "__main__":
-    ruta = Path(__file__).with_name("prueba.txt")
-    texto = ruta.read_bytes().decode("utf-8")
-    print(repr(texto))
-    
-    conteo = Counter(texto)
-
-    s = list(conteo.keys())
-    freq = list(conteo.values())
-
-    print(s)
-    print(freq)
-
-    codes_dic, root = huffmanCodes(s, freq)
-
+def codificar(ruta_huff, codes_dic, texto, root):
     # Pasar los codigos de strings a bitarrays
     codes = {}
     for char, code in codes_dic.items():
@@ -255,12 +238,112 @@ if __name__ == "__main__":
     padding = 8 - (len(bits) % 8) % 8
 
     # Generar el .huff y guardar el diccionario, padding, arbol y bits
-    ruta_huff = ruta.with_suffix(".huff")
     with ruta_huff.open("wb") as archivo:
         pickle.dump((codes_dic, padding, root), archivo)
         bits.tofile(archivo)
+
+def decodificar(ruta_huff):
+    with ruta_huff.open("rb") as archivo:
+        codes_dic, padding, root = pickle.load(archivo)
+        bits = bitarray()
+        bits.frombytes(archivo.read())
+
+    if padding > 0:
+        bits = bits[:-padding]
+
+    # Version 1 - Usando el inverso del diccionario
+    codes_dic_inv = {}
+    for char, code in codes_dic.items():
+        codes_dic_inv[code] = char
+
     
-    visualizar_arbol(root, ruta.with_name("arbol_huffman.svg"))
-    # print(root)
-    print_huffman_solution(s, freq, codes_dic)
+    codigo_actual = ""
+    texto = ""
+    for bit in bits:
+        codigo_actual += "1" if bit else "0"
+
+        if codigo_actual in codes_dic_inv:
+            texto += codes_dic_inv[codigo_actual]
+            codigo_actual = ""
+    print("Usando un diccionario inverso:")
+    print(repr(texto))
+
+    # Version 2 - Usando el arbol de Huffman
+    texto = ""
+    nodo = root
+    for bit in bits:
+        if bit:
+            nodo = nodo.right
+        else:
+            nodo = nodo.left
+
+        if nodo.right is None and nodo.left is None:
+            texto += nodo.char
+            nodo = root
+    print("Usando el arbol de Huffman:")
+    print(repr(texto))
+
+if __name__ == "__main__":
+
+    generar_grafos = False
+
+    carpeta = Path(__file__).with_name("textos")
+
+    # Genera las carpetas para los .huff y los grafos (por si no llegaran a estar ya)
+    (carpeta.parent / "comprimidos").mkdir(exist_ok=True)
+    if generar_grafos:
+        (carpeta.parent / "grafos").mkdir(exist_ok=True)
+    idiomas = {
+        "espanol": "Español",
+        "frances": "Francés",
+        "ingles": "Inglés",
+    }
+    filas = []
+
+    for prefijo, idioma in idiomas.items():
+        for numero in range(1, 11):
+            ruta_txt = carpeta / f"{prefijo}_{numero}.txt"
+            ruta_huff = carpeta.parent / "comprimidos" / f"{ruta_txt.stem}.huff"
+            ruta_grafo = carpeta.parent / "grafos" / f"{ruta_txt.stem}.svg"
+
+            datos = ruta_txt.read_bytes()
+            tamano_original = len(datos)
+            if tamano_original == 0:
+                raise ValueError(f"El archivo {ruta_txt.name} está vacío.")
+
+            texto = datos.decode("utf-8")
+            conteo = Counter(texto)
+            simbolos = list(conteo.keys())
+            frecuencias = list(conteo.values())
+
+            codes_dic, root = huffmanCodes(simbolos, frecuencias)
+
+            if generar_grafos:
+                visualizar_arbol(root, ruta_grafo)
+
+            _, _, bits_por_simbolo = tabla_huffman(simbolos, frecuencias, codes_dic)
+
+            codificar(ruta_huff, codes_dic, texto, root)
+            tamano_comprimido = ruta_huff.stat().st_size
+
+            filas.append({
+                "Archivo": ruta_txt.name,
+                "Idioma": idioma,
+                "Tamaño original (bytes)": tamano_original,
+                "Tamaño comprimido (bytes)": tamano_comprimido,
+                "Compression factor": tamano_comprimido / tamano_original,
+                "Bits promedio por símbolo": bits_por_simbolo,
+            })
+
+    por_archivo = pd.DataFrame(filas)
+    por_idioma = por_archivo.groupby("Idioma", as_index=False)[
+        ["Compression factor", "Bits promedio por símbolo"]
+    ].mean()
+
+    por_archivo.to_csv(
+        carpeta.parent / "estadisticas_por_archivo.csv", index=False, encoding="utf-8-sig"
+    )
+    por_idioma.to_csv(
+        carpeta.parent / "estadisticas_por_idioma.csv", index=False, encoding="utf-8-sig"
+    )
         
