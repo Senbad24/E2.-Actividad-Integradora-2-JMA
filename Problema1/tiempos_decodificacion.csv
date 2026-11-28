@@ -1,0 +1,7 @@
+﻿Archivo,Idioma,Método,Repeticiones,Promedio (ms),Desviación estándar (ms)
+espanol_1.huff,Español,Diccionario inverso,200,72.84750700346194,2.702921252708482
+espanol_1.huff,Español,Árbol de Huffman,200,53.16512251389213,1.7304441560435697
+ingles_1.huff,Inglés,Diccionario inverso,200,262.705301491078,6.96185657929857
+ingles_1.huff,Inglés,Árbol de Huffman,200,198.93133799661882,4.427697160749113
+frances_1.huff,Francés,Diccionario inverso,200,381.17215351201594,20.883790118610797
+frances_1.huff,Francés,Árbol de Huffman,200,290.4746389912907,15.606678756021854

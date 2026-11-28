@@ -47,6 +47,8 @@ from bitarray import bitarray
 from pathlib import Path
 from collections import Counter
 import pickle
+from statistics import mean, stdev
+from time import perf_counter
 
 def show_dataframe(df, decimals=2):
     try:
@@ -235,28 +237,31 @@ def codificar(ruta_huff, codes_dic, texto, root):
         bits.extend(codes[char])
 
     # Calcular el padding, por si no llega a completar el ultimo byte
-    padding = 8 - (len(bits) % 8) % 8
+    padding = (-len(bits)) % 8
 
     # Generar el .huff y guardar el diccionario, padding, arbol y bits
     with ruta_huff.open("wb") as archivo:
         pickle.dump((codes_dic, padding, root), archivo)
         bits.tofile(archivo)
 
-def decodificar(ruta_huff):
+def leer_comprimido(ruta_huff):
     with ruta_huff.open("rb") as archivo:
         codes_dic, padding, root = pickle.load(archivo)
         bits = bitarray()
         bits.frombytes(archivo.read())
 
-    if padding > 0:
-        bits = bits[:-padding]
+    # Las versiones anteriores guardaban 8 cuando no habia relleno.
+    if 0 < padding < 8:
+        del bits[-padding:]
 
-    # Version 1 - Usando el inverso del diccionario
+    return bits, codes_dic, root
+
+
+def decodificar_por_diccionario(bits, codes_dic):
     codes_dic_inv = {}
     for char, code in codes_dic.items():
         codes_dic_inv[code] = char
 
-    
     codigo_actual = ""
     texto = ""
     for bit in bits:
@@ -265,10 +270,11 @@ def decodificar(ruta_huff):
         if codigo_actual in codes_dic_inv:
             texto += codes_dic_inv[codigo_actual]
             codigo_actual = ""
-    print("Usando un diccionario inverso:")
-    print(repr(texto))
 
-    # Version 2 - Usando el arbol de Huffman
+    return texto
+
+
+def decodificar_por_arbol(bits, root):
     texto = ""
     nodo = root
     for bit in bits:
@@ -280,12 +286,52 @@ def decodificar(ruta_huff):
         if nodo.right is None and nodo.left is None:
             texto += nodo.char
             nodo = root
-    print("Usando el arbol de Huffman:")
-    print(repr(texto))
+
+    return texto
+
+
+def comparar_tiempos_decodificacion():
+    carpeta = Path(__file__).resolve().parent
+    archivos = {"espanol_1": "Español", "ingles_1": "Inglés", "frances_1": "Francés"}
+    filas = []
+
+    for nombre, idioma in archivos.items():
+        ruta_huff = carpeta / "comprimidos" / f"{nombre}.huff"
+        bits, codes_dic, root = leer_comprimido(ruta_huff)
+        metodos = (
+            ("Diccionario inverso", decodificar_por_diccionario, codes_dic),
+            ("Árbol de Huffman", decodificar_por_arbol, root),
+        )
+
+        for metodo, decodificador, datos in metodos:
+
+            tiempos_ms = []
+            for _ in range(200):
+                inicio = perf_counter()
+                decodificador(bits, datos)
+                tiempos_ms.append((perf_counter() - inicio) * 1000)
+
+            filas.append({
+                "Archivo": ruta_huff.name,
+                "Idioma": idioma,
+                "Método": metodo,
+                "Repeticiones": 200,
+                "Promedio (ms)": mean(tiempos_ms),
+                "Desviación estándar (ms)": stdev(tiempos_ms),
+            })
+
+    return pd.DataFrame(filas)
+
 
 if __name__ == "__main__":
+    # Prender para generar las graficas
+    # TARDA 25 seg APROXIMADAMENTE
+    generar_grafos = False 
 
-    generar_grafos = False
+    # Prender para generar la comparacion de los decodificadores, 
+    # HACE 200 REPETICIONES DE CADA METODO CON 1 ARCHIVO DE CADA IDIOMA
+    # TARDA 4 min APROXIMADAMENTE
+    comparar_decodificacion = False
 
     carpeta = Path(__file__).with_name("textos")
 
@@ -293,11 +339,14 @@ if __name__ == "__main__":
     (carpeta.parent / "comprimidos").mkdir(exist_ok=True)
     if generar_grafos:
         (carpeta.parent / "grafos").mkdir(exist_ok=True)
+
+    # Para iterar los 3 idiomas
     idiomas = {
         "espanol": "Español",
         "frances": "Francés",
         "ingles": "Inglés",
     }
+    # Para las estadisticas
     filas = []
 
     for prefijo, idioma in idiomas.items():
@@ -308,8 +357,6 @@ if __name__ == "__main__":
 
             datos = ruta_txt.read_bytes()
             tamano_original = len(datos)
-            if tamano_original == 0:
-                raise ValueError(f"El archivo {ruta_txt.name} está vacío.")
 
             texto = datos.decode("utf-8")
             conteo = Counter(texto)
@@ -340,10 +387,10 @@ if __name__ == "__main__":
         ["Compression factor", "Bits promedio por símbolo"]
     ].mean()
 
-    por_archivo.to_csv(
-        carpeta.parent / "estadisticas_por_archivo.csv", index=False, encoding="utf-8-sig"
-    )
-    por_idioma.to_csv(
-        carpeta.parent / "estadisticas_por_idioma.csv", index=False, encoding="utf-8-sig"
-    )
+    por_archivo.to_csv( carpeta.parent / "estadisticas_por_archivo.csv", index=False, encoding="utf-8-sig" )
+    por_idioma.to_csv( carpeta.parent / "estadisticas_por_idioma.csv", index=False, encoding="utf-8-sig" )
+
+    if comparar_decodificacion:
+        tiempos = comparar_tiempos_decodificacion()
+        tiempos.to_csv( carpeta.parent / "tiempos_decodificacion.csv", index=False,encoding="utf-8-sig")
         
